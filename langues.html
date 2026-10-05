@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Révisions — Vocabulaire</title>
+<title>Vocabulaire — Didou</title>
 <style>
 :root{--bg:#f4f7fb;--card:#fff;--ink:#182233;--muted:#657083;--accent:#4169e1;--good:#168a52;--bad:#c93636}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
@@ -58,11 +58,14 @@ input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:1
 const params=new URLSearchParams(location.search);
 const langKey=params.get('lang')||'anglais';
 const L=window.VOCAB_DATA[langKey]||Object.values(window.VOCAB_DATA)[0];
+const BRAVOS=['✅ Bravo Didou !','✅ Super, bien joué !','✅ Excellent, tu progresses !','✅ Parfait, continue comme ça !'];
+const COURAGE=['💡 Pas grave, on apprend de ses erreurs !','💡 Presque ! Regarde bien la réponse, tu vas la retenir.','💡 Ce n\u2019est pas encore ça, mais chaque essai compte. Courage !'];
 let lesson=L.lessons[0], mode='list', cardIdx=0, flipped=false, deck=[];
 let qIdx=0, qTotal=10, score=Number(localStorage['score_'+langKey]||0), current=null, answered=false;
 let mistakes=JSON.parse(localStorage['mistakes_'+langKey]||'{}');
 const $=id=>document.getElementById(id);
-$('title').textContent=`${L.flag} ${L.label}`;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+$('title').textContent=`${L.flag} ${L.label} de Didou`;
 
 function speak(txt){try{const u=new SpeechSynthesisUtterance(txt);u.lang=L.speech;speechSynthesis.speak(u)}catch(e){}}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,;'\u2019]/g,'').replace(/\s+/g,' ').trim()}
@@ -73,13 +76,14 @@ function buildLessonChips(){
   L.lessons.forEach(l=>{let c=document.createElement('span');c.className='chip'+(l.id===lesson.id?' on':'');c.textContent=l.title;c.onclick=()=>{lesson=l;setMode(mode)};$('lessons').appendChild(c)});
 }
 
-function setMode(m){mode=m;buildLessonChips();render()}
+function setMode(m){mode=m;deck=[];buildLessonChips();render()}
 function render(){
   let v=$('view');
   if(mode==='list'){
     v.innerHTML=`<h3>${lesson.title}</h3><table class="vocab-table">${lesson.pairs.map(p=>`<tr><td class="fr">${esc(p[0])}</td><td class="lang">${esc(p[1])}</td><td><button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></td></tr>`).join('')}</table>`;
   } else if(mode==='flash'){
     if(!deck.length){deck=[...lesson.pairs].sort(()=>Math.random()-.5);cardIdx=0;flipped=false}
+    if(!deck.length){v.innerHTML='<div class="sub">Ajoute du vocabulaire dans cette leçon pour commencer.</div>';return}
     const p=deck[cardIdx];
     v.innerHTML=`<div class="sub">${cardIdx+1}/${deck.length} · clique sur la carte pour retourner</div>
       <div class="flip" onclick="flipped=!flipped;render()">
@@ -122,13 +126,13 @@ function check(){
   localStorage['score_'+langKey]=score;localStorage['mistakes_'+langKey]=JSON.stringify(mistakes);
   $('score').textContent=score;
   $('fb').style.color=ok?'var(--good)':'var(--bad)';
-  $('fb').innerHTML=ok?'✅ Bravo !':`❌ La bonne réponse était : <b>${esc(expected)}</b>`;
+  $('fb').innerHTML=ok?pick(BRAVOS):`${pick(COURAGE)} La bonne réponse était : <b>${esc(expected)}</b>`;
   $('next').classList.remove('hidden');
 }
 function nextQ(){
   qIdx++;current=null;
   if(qIdx>=qTotal){
-    $('view').innerHTML=`<h3>🏁 Quiz terminé !</h3><p>Score ${L.label} : ${score} ⭐</p><p class="small">Les mots ratés reviennent plus souvent.</p><button class="primary" onclick="qIdx=0;setMode('quiz')">Rejouer</button>`;
+    $('view').innerHTML=`<h3>🏁 Quiz terminé !</h3><p>Tu as gagné ${score} ⭐, Didou. Les mots ratés reviendront gentiment pour t\u2019entraîner encore. Tu progresses, bravo ! 💖</p><button class="primary" onclick="qIdx=0;setMode('quiz')">Rejouer</button>`;
     return;
   }
   render();

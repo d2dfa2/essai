@@ -1,7 +1,6 @@
 /* ============================================================
    CONTENU LANGUES — listes de vocabulaire.
-   Pour chaque langue, une liste de leçons. Chaque leçon a un
-   titre et des paires [français, langue étrangère].
+   Une leçon = { id:'identifiant', title:'Titre affiché', pairs:[[français, langue], ...] }
    Les éléments marqués "EXEMPLE" sont des démos à remplacer
    par le vrai vocabulaire des cours.
    ============================================================ */

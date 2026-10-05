@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mission Calcul — 5e</title>
+<title>Maths — Didou (5e)</title>
 <style>
 :root{--bg:#f4f7fb;--card:#fff;--ink:#182233;--muted:#657083;--accent:#4169e1;--good:#168a52;--bad:#c93636}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
@@ -26,13 +26,13 @@ input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:1
 <div class="app">
   <a class="back" href="index.html">🏠 Accueil</a>
   <div class="top">
-    <div><h1>🎯 Mission Calcul</h1><div class="small">5e · automatismes + vocabulaire + priorités</div></div>
+    <div><h1>🎯 Maths de Didou</h1><div class="small">5e · un chapitre à la fois, à ton rythme</div></div>
     <div class="stats"><span class="pill">⭐ <span id="score">0</span></span><span class="pill">🔥 <span id="streak">0</span></span></div>
   </div>
 
   <section id="home" class="card">
-    <h2>Choisis ta mission</h2>
-    <p class="sub">Les exercices ratés reviennent plus souvent. Pas de chronomètre, prends ton temps.</p>
+    <h2>Choisis ton chapitre</h2>
+    <p class="sub">Pas de chronomètre : prends le temps qu'il te faut. Les exercices ratés reviennent plus souvent, c'est comme ça qu'on apprend ! 💡</p>
     <div class="menu" id="menu"></div>
     <div class="card" style="margin-top:16px">
       <h3>📖 Les mots à connaître</h3>
@@ -50,18 +50,21 @@ input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:1
   </section>
 
   <section id="end" class="card hidden">
-    <h2>🏁 Mission terminée !</h2>
+    <h2>🏁 Chapitre terminé !</h2>
     <p id="result"></p>
-    <button class="primary" onclick="home()">Retour aux missions</button>
+    <button class="primary" onclick="home()">Retour aux chapitres</button>
   </section>
 </div>
 
 <script src="data/math.js"></script>
 <script>
 const CHAPTERS = window.MATH_DATA ? window.MATH_DATA.chapters : [];
+const BRAVOS = ['✅ Bravo Didou !','✅ Super, bien joué !','✅ Excellent, tu progresses !','✅ Parfait, continue comme ça !'];
+const COURAGE = ['💡 Pas grave, on apprend de ses erreurs !','💡 Presque ! Regarde bien l\u2019astuce, tu vas y arriver.','💡 Ce n\u2019est pas encore ça, mais chaque essai compte. Courage !','💡 On se trompe, on recommence : c\u2019est comme ça qu\u2019on devient fort(e) !'];
 let mode='', qIndex=0, total=10, score=Number(localStorage.score||0), streak=0, current=null, answered=false;
 let mistakes=JSON.parse(localStorage.mistakes||'{}');
 const $=id=>document.getElementById(id);
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function save(){localStorage.score=score;localStorage.mistakes=JSON.stringify(mistakes)}
 function home(){$('home').classList.remove('hidden');$('game').classList.add('hidden');$('end').classList.add('hidden')}
 function start(m){mode=m;qIndex=0;streak=0;$('home').classList.add('hidden');$('end').classList.add('hidden');$('game').classList.remove('hidden');nextQuestion()}
@@ -78,11 +81,11 @@ function render(q){
  if(q.type==='choice'){q.a.forEach((x,i)=>{let b=document.createElement('button');b.className='choice';b.textContent=x;b.onclick=()=>answer(i===q.correct,b,x);c.appendChild(b)})}
  else {c.innerHTML+=`<input class="answer" id="ans" inputmode="decimal" autocomplete="off" placeholder="Ta réponse"><button class="primary" style="display:block;margin:auto" onclick="checkInput()">Valider</button>`;$('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')checkInput()}}
 }
-function answer(ok,el){if(answered)return;answered=true; if(!ok) mistake(); if(ok){score+=10;streak++;$('feedback').textContent='✅ Bravo !';$('feedback').style.color='var(--good)'}else{$('feedback').innerHTML=`❌ Pas tout à fait.<br><span class="small">${current.explain}</span>`;$('feedback').style.color='var(--bad)'} save();update();document.querySelectorAll('.choice').forEach(b=>b.disabled=true);el.classList.add(ok?'correct':'wrong');$('next').classList.remove('hidden')}
+function answer(ok,el){if(answered)return;answered=true; if(!ok) mistake(); if(ok){score+=10;streak++;$('feedback').textContent=pick(BRAVOS);$('feedback').style.color='var(--good)'}else{$('feedback').innerHTML=`${pick(COURAGE)}<br><span class="small">${current.explain}</span>`;$('feedback').style.color='var(--bad)'} save();update();document.querySelectorAll('.choice').forEach(b=>b.disabled=true);el.classList.add(ok?'correct':'wrong');$('next').classList.remove('hidden')}
 function checkInput(){if(answered)return;let ok=norm($('ans').value)===norm(current.correct);answer(ok,$('ans'))}
 function mistake(){let k=current.key||current.q;mistakes[k]=(mistakes[k]||0)+1;streak=0}
 function update(){$('score').textContent=score;$('streak').textContent=streak}
-function nextQuestion(){if(qIndex>=total){$('game').classList.add('hidden');$('end').classList.remove('hidden');$('result').textContent=`Score total : ${score} ⭐. Les erreurs sont mémorisées pour revenir plus souvent dessus.`;return}qIndex++;let pool=buildPool(mode);$('mode').textContent=label(mode);if(pool.length){render(weighted(pool))}else{qIndex=total;nextQuestion()}}
+function nextQuestion(){if(qIndex>=total){$('game').classList.add('hidden');$('end').classList.remove('hidden');const good=total-(Object.keys(mistakes).length?0:0);$('result').textContent=`Tu as gagné ${score} ⭐ au total, Didou. Chaque erreur est notée gentiment : elle reviendra pour t\u2019entraîner encore. Tu progresses, bravo ! 💖`;return}qIndex++;let pool=buildPool(mode);$('mode').textContent=label(mode);if(pool.length){render(weighted(pool))}else{qIndex=total;nextQuestion()}}
 function label(m){if(m==='mix')return 'Mission complète';const c=CHAPTERS.find(c=>c.id===m);return c?c.title:m}
 function buildPool(m){
  if(m==='mix')return CHAPTERS.flatMap(c=>c.questions);

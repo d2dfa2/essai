@@ -1,53 +1,42 @@
-# Site de révisions — 5e
+# Les révisions de Didou 💖
 
-Petit site statique hébergé sur GitHub Pages : exercices de maths + vocabulaire anglais/espagnol.
+Petit site statique hébergé sur GitHub Pages : exercices de maths + vocabulaire anglais/espagnol, pour une élève de 5e.
 
 ## Structure
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | Accueil (choix matière) |
-| `math.html` | Exercices de maths (QCM + réponses tapées) |
-| `langues.html?lang=anglais` ou `?lang=espagnol` | Vocabulaire : liste, cartes, quiz |
-| `data/math.js` | **Contenu des exercices de maths** |
-| `data/vocab.js` | **Listes de vocabulaire** |
+| `index.html` | Accueil — une entrée par matière (Maths, Anglais, Espagnol) |
+| `math.html` | Chapitres de maths (QCM + réponses tapées) |
+| `langues.html?lang=anglais` ou `?lang=espagnol` | Leçons de vocabulaire : liste, cartes, quiz |
+| `data/math.js` | **Contenu des chapitres de maths** |
+| `data/vocab.js` | **Leçons de vocabulaire des langues** |
 
-Les scores et les erreurs sont mémorisés dans le navigateur ; les questions ratées reviennent plus souvent.
+Scores et erreurs sont mémorisés dans le navigateur ; les questions ratées reviennent plus souvent. Les messages sont bienveillants (Didou a besoin d'encouragements 💖).
 
 ## Ajouter du contenu
 
-Le contenu est **séparé du code** : tout se passe dans `data/math.js` et `data/vocab.js`.
+Tout est dans `data/math.js` et `data/vocab.js` — le code n'a pas besoin de changer.
 
-### Maths (`data/math.js`)
-
-Chaque chapitre contient des questions. Deux formats :
+### Maths — ajouter un chapitre
 
 ```js
-// Réponse tapée
-{ key:'p1', q:'8 + 2 × 5 = ?', correct:'18', explain:'La multiplication est prioritaire.', help:'' }
-
-// QCM (correct = index de la bonne réponse, à partir de 0)
-{ type:'choice', key:'somme', q:'Le résultat d\u2019une addition s\u2019appelle…',
-  a:['une somme','un produit'], correct:0, explain:'Addition → somme.' }
+{ id:'fractions', icon: '🍰', title: 'Fractions', questions: [
+  { key:'f1', q:'1/2 + 1/4 = ? (en dixièmes)', correct:'0,75', explain:'…' },
+  { type:'choice', key:'f2', q:'…', a:['rep1','rep2','rep3'], correct:1, explain:'…' }
+] }
 ```
 
-### Langues (`data/vocab.js`)
+### Langues — ajouter une leçon
 
 ```js
-anglais: {
-  label:'Anglais', flag:'🇬🇧', speech:'en-GB',
-  lessons: [
-    { id:'unit1', title:'Unité 1 — La famille', pairs: [['mère','mother'], ...] }
-  ]
-}
+{ id:'unit1', title:'Unité 1 — La famille', pairs:[['mère','mother'], ...] }
 ```
 
-## Activer GitHub Pages (une seule fois)
+## GitHub Pages
 
-1. Ouvrir <https://github.com/d2dfa2/essai/settings/pages>
-2. **Source** : *Deploy from a branch* → branche `main`, dossier `/ (root)`
-3. Save → après 1–2 min, le site est sur <https://d2dfa2.github.io/essai/>
+Une fois activé (Settings → Pages → branche `main`, dossier `/ (root)`), le site est sur <https://d2dfa2.github.io/essai/>
 
-## Workflow simple
+## Workflow
 
-Envoie des photos/scans des cours ou exercices dans la conversation : je les convertis au bon format et je les pousse dans le dépôt.
+Envoyer les scans de cours ou d'exercices dans la conversation Vibe : conversion au bon format + push dans le dépôt.
