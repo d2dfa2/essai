@@ -12,6 +12,7 @@ h1{margin:0;font-size:26px}
 .card{background:var(--card);border-radius:20px;padding:24px;margin-top:18px;box-shadow:0 5px 20px #0000000d}
 button{border:0;border-radius:14px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer;background:#e9eefc;color:var(--ink)}
 button.primary{background:var(--accent);color:white}button:hover{filter:brightness(.97)}
+button.rec{background:#fde3e3;color:#c93636}
 .back{display:inline-block;margin-bottom:10px;text-decoration:none;color:var(--accent);font-weight:700}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
 .chip{border-radius:999px;padding:8px 14px;background:#e9eefc;cursor:pointer;font-weight:700;font-size:14px}
@@ -20,7 +21,7 @@ button.primary{background:var(--accent);color:white}button:hover{filter:brightne
 .vocab-table{width:100%;border-collapse:collapse;margin-top:10px}
 .vocab-table td{padding:10px 8px;border-bottom:1px solid #e7ebf2}
 .vocab-table td.lang{font-weight:800}.vocab-table td.fr{color:var(--muted)}
-.speak{background:#e9eefc;border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px}
+.speak,.mic{background:#e9eefc;border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px}
 .flip{background:var(--accent);color:#fff;border-radius:20px;padding:36px 20px;text-align:center;cursor:pointer;min-height:140px;display:flex;flex-direction:column;justify-content:center}
 .flip .word{font-size:32px;font-weight:800}.flip .hint{font-size:14px;opacity:.8;margin-top:10px}
 input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:14px;border:2px solid #ccd3df;border-radius:12px;font-size:22px;text-align:center}
@@ -29,6 +30,8 @@ input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:1
 .pill{background:#fff;border-radius:999px;padding:8px 12px;box-shadow:0 2px 8px #0001;font-weight:700}
 .small{font-size:14px;color:var(--muted)}.sub{text-align:center;color:var(--muted)}
 .hidden{display:none}
+.mastered{font-size:13px;color:var(--good);font-weight:700}
+.audiobar{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -40,14 +43,18 @@ input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:1
   </div>
 
   <section class="card">
-    <h3>1. Choisis ta leçon</h3>
+    <h3>1. Choisis ta leçon <span class="small">(préparation d'un contrôle)</span></h3>
     <div class="chips" id="lessons"></div>
     <h3>2. Choisis ton mode</h3>
     <div class="modebar">
       <button onclick="setMode('list')">📖 Réviser</button>
       <button onclick="setMode('flash')">🃏 Cartes</button>
-      <button class="primary" onclick="setMode('quiz')">✏️ Quiz</button>
+      <button class="primary" onclick="setMode('quiz')">✏️ Quiz de leçon</button>
     </div>
+    <div class="modebar">
+      <button class="primary" onclick="setMode('pool')">🎲 Quiz général — toutes les leçons</button>
+    </div>
+    <p class="small">Dans le quiz général, les mots ratés reviennent plus souvent, et les mots validés 10 fois ne sont plus posés : ils sont maîtrisés ! 🏆</p>
   </section>
 
   <section class="card" id="view"></section>
@@ -60,47 +67,103 @@ const langKey=params.get('lang')||'anglais';
 const L=window.VOCAB_DATA[langKey]||Object.values(window.VOCAB_DATA)[0];
 const BRAVOS=['✅ Bravo Didou !','✅ Super, bien joué !','✅ Excellent, tu progresses !','✅ Parfait, continue comme ça !'];
 const COURAGE=['💡 Pas grave, on apprend de ses erreurs !','💡 Presque ! Regarde bien la réponse, tu vas la retenir.','💡 Ce n\u2019est pas encore ça, mais chaque essai compte. Courage !'];
+const MASTER_AT=10; // validé 10 fois => maîtrisé
 let lesson=L.lessons[0], mode='list', cardIdx=0, flipped=false, deck=[];
 let qIdx=0, qTotal=10, score=Number(localStorage['score_'+langKey]||0), current=null, answered=false;
-let mistakes=JSON.parse(localStorage['mistakes_'+langKey]||'{}');
+let stats=JSON.parse(localStorage['vstats_'+langKey]||'{}');   // { key: {c:bonnes réponses, w:erreurs} }
 const $=id=>document.getElementById(id);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 $('title').textContent=`${L.flag} ${L.label} de Didou`;
 
 function speak(txt){try{const u=new SpeechSynthesisUtterance(txt);u.lang=L.speech;speechSynthesis.speak(u)}catch(e){}}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,;'\u2019]/g,'').replace(/\s+/g,' ').trim()}
-function keyOf(p){return lesson.id+'::'+p[0]+'::'+p[1]}
+function keyOf(p){return p[0]+'::'+p[1]}
+function st(p){return stats[keyOf(p)]||{c:0,w:0}}
+function record(p,ok){
+  const k=keyOf(p);if(!stats[k])stats[k]={c:0,w:0};
+  if(ok)stats[k].c++;else stats[k].w++;
+  localStorage['vstats_'+langKey]=JSON.stringify(stats);
+}
+function masterCount(){return allPairs().filter(p=>st(p).c>=MASTER_AT).length}
+function allPairs(){return L.lessons.flatMap(l=>l.pairs)}
 
-function buildLessonChips(){
-  $('lessons').innerHTML='';
-  L.lessons.forEach(l=>{let c=document.createElement('span');c.className='chip'+(l.id===lesson.id?' on':'');c.textContent=l.title;c.onclick=()=>{lesson=l;setMode(mode)};$('lessons').appendChild(c)});
+/* ---------- Enregistrement voix ---------- */
+let mediaRec=null, audioChunks=[], lastAudio=null;
+async function toggleRec(btnId, txt){
+  const btn=$(btnId);
+  try{
+    if(mediaRec&&mediaRec.state==='recording'){mediaRec.stop();return}
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];lastAudio=null;
+    mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=e=>audioChunks.push(e.data);
+    mediaRec.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      lastAudio=URL.createObjectURL(new Blob(audioChunks,{type:'audio/webm'}));
+      btn.textContent='🎤 Dire encore';
+      const pb=document.createElement('button');pb.className='speak';pb.textContent='▶️ Ma voix';
+      pb.onclick=()=>new Audio(lastAudio).play();
+      btn.after(pb);
+      btn.dataset.playback='1';
+    };
+    mediaRec.start();
+    btn.textContent='⏹️ Arrêter';btn.classList.add('rec');
+  }catch(e){btn.textContent='🎤 Micro refusé';setTimeout(()=>btn.textContent='🎤 '+txt,1500)}
+}
+function recButton(txt,word){
+  const id='rec_'+Math.random().toString(36).slice(2,8);
+  return `<button class="mic" id="${id}" onclick="toggleRec('${id}','${txt.replace(/'/g,'\\'')}')"></button>`
 }
 
+/* ---------- Leçons / modes ---------- */
+function buildLessonChips(){
+  $('lessons').innerHTML='';
+  L.lessons.forEach(l=>{
+    let c=document.createElement('span');c.className='chip'+(l.id===lesson.id&&mode!=='pool'?' on':'');c.textContent=l.title;
+    c.onclick=()=>{lesson=l;setMode(mode==='pool'?'list':mode)};$('lessons').appendChild(c);
+  });
+}
 function setMode(m){mode=m;deck=[];buildLessonChips();render()}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
 function render(){
   let v=$('view');
   if(mode==='list'){
-    v.innerHTML=`<h3>${lesson.title}</h3><table class="vocab-table">${lesson.pairs.map(p=>`<tr><td class="fr">${esc(p[0])}</td><td class="lang">${esc(p[1])}</td><td><button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></td></tr>`).join('')}</table>`;
+    v.innerHTML=`<h3>${lesson.title}</h3><table class="vocab-table">${lesson.pairs.map(p=>{
+      const s=st(p);
+      return `<tr><td class="fr">${esc(p[0])}</td><td class="lang">${esc(p[1])}</td>
+      <td><button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Modèle</button></td>
+      <td>${recButton('Ma voix')}</td>
+      <td>${s.c>=MASTER_AT?'<span class="mastered">🏆 maîtrisé</span>':''}</td></tr>`}).join('')}</table>
+      <p class="small">Astuce : écoute le modèle, dis le mot, puis réécoute-toi. Se comparer au modèle, c\u2019est le meilleur moyen de progresser !</p>`;
   } else if(mode==='flash'){
     if(!deck.length){deck=[...lesson.pairs].sort(()=>Math.random()-.5);cardIdx=0;flipped=false}
     if(!deck.length){v.innerHTML='<div class="sub">Ajoute du vocabulaire dans cette leçon pour commencer.</div>';return}
-    const p=deck[cardIdx];
+    const p=deck[cardIdx];const s=st(p);
     v.innerHTML=`<div class="sub">${cardIdx+1}/${deck.length} · clique sur la carte pour retourner</div>
       <div class="flip" onclick="flipped=!flipped;render()">
         <div class="word">${flipped?esc(p[1]):esc(p[0])}</div>
         <div class="hint">${flipped?esc(p[0]):'Traduis dans ta tête, puis clique'}</div>
       </div>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+      <div class="audiobar">
         <button onclick="cardIdx=(cardIdx-1+deck.length)%deck.length;flipped=false;render()">←</button>
-        <button onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊</button>
+        <button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Modèle</button>
+        <button class="mic" onclick="recCard(this)">🎤 Ma voix</button>
         <button class="primary" onclick="cardIdx=(cardIdx+1)%deck.length;flipped=false;render()">→</button>
-      </div>`;
-  } else if(mode==='quiz'){
+      </div>
+      ${s.c>=MASTER_AT?'<p class="sub mastered">🏆 Ce mot est maîtrisé !</p>':''}`;
+  } else if(mode==='quiz'||mode==='pool'){
     if(!current){current=draw();answered=false}
-    if(!current){v.innerHTML='<div class="sub">Ajoute du vocabulaire dans cette leçon pour lancer le quiz.</div>';return}
+    if(!current){
+      const poolEmpty=mode==='pool';
+      v.innerHTML=poolEmpty
+        ? '<h3>🏆 Incroyable !</h3><p>Tous les mots du pool général sont maîtrisés. Tu es trop forte, Didou ! 💖</p>'
+        : '<div class="sub">Ajoute du vocabulaire dans cette leçon pour lancer le quiz.</div>';
+      return;
+    }
     const toLang=Math.random()<.5;
     v.innerHTML=`<div class="progress"><div class="bar" style="width:${qIdx/qTotal*100}%"></div></div>
-      <div class="sub">Question ${qIdx+1}/${qTotal} · traduis ${toLang?'en '+L.label.toLowerCase():'en français'}</div>
+      <div class="sub">${mode==='pool'?'Quiz général · ':''}Question ${qIdx+1}/${qTotal} · traduis ${toLang?'en '+L.label.toLowerCase():'en français'}</div>
       <div class="flip" style="cursor:default"><div class="word">${esc(toLang?current[0]:current[1])}</div>
         <button class="speak" onclick="speak(${JSON.stringify(toLang?current[0]:current[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></div>
       <input class="answer" id="ans" autocomplete="off" placeholder="Ta réponse">
@@ -110,29 +173,45 @@ function render(){
     $('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')check()};
   }
 }
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function recCard(btn){toggleRec(btn,'Ma voix')}
+
+/* ---------- Tirage des questions ---------- */
 function draw(){
-  const pool=[...lesson.pairs];if(!pool.length)return null;
-  let hard=[];pool.forEach(p=>{for(let i=0;i<(mistakes[keyOf(p)]||0);i++)hard.push(p)});
-  const all=pool.concat(hard);return all[Math.floor(Math.random()*all.length)];
+  const pairs=mode==='pool'?allPairs():[...lesson.pairs];
+  if(!pairs.length)return null;
+  let pool;
+  if(mode==='pool'){
+    // pool : on retire les mots maîtrisés, on pèse par les erreurs
+    pool=[];pairs.forEach(p=>{const s=st(p);if(s.c<MASTER_AT){const w=s.w;for(let i=0;i<1+w;i++)pool.push(p)}});
+    if(!pool.length)return null; // tout est maîtrisé
+  } else {
+    // quiz de leçon : tout le monde joue, mais les ratés un peu plus souvent
+    pool=[];pairs.forEach(p=>{const w=st(p).w;for(let i=0;i<1+Math.min(w,2);i++)pool.push(p)});
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
 }
 function check(){
   if(answered)return;const toLang=$('view').querySelector('.sub').textContent.includes(L.label.toLowerCase());
   const expected=toLang?current[1]:current[0];
   const ok=norm($('ans').value)===norm(expected);
   answered=true;
-  if(!ok){mistakes[keyOf(current)]=(mistakes[keyOf(current)]||0)+1}
-  else{score+=10}
-  localStorage['score_'+langKey]=score;localStorage['mistakes_'+langKey]=JSON.stringify(mistakes);
+  record(current,ok);
+  if(ok)score+=10;
+  localStorage['score_'+langKey]=score;
   $('score').textContent=score;
   $('fb').style.color=ok?'var(--good)':'var(--bad)';
-  $('fb').innerHTML=ok?pick(BRAVOS):`${pick(COURAGE)} La bonne réponse était : <b>${esc(expected)}</b>`;
+  const mastered=ok&&st(current).c>=MASTER_AT&&mode==='pool';
+  $('fb').innerHTML=ok?pick(BRAVOS)+(mastered?' 🏆 Ce mot est maintenant maîtrisé !':'')
+    :`${pick(COURAGE)} La bonne réponse était : <b>${esc(expected)}</b>`;
   $('next').classList.remove('hidden');
 }
 function nextQ(){
   qIdx++;current=null;
   if(qIdx>=qTotal){
-    $('view').innerHTML=`<h3>🏁 Quiz terminé !</h3><p>Tu as gagné ${score} ⭐, Didou. Les mots ratés reviendront gentiment pour t\u2019entraîner encore. Tu progresses, bravo ! 💖</p><button class="primary" onclick="qIdx=0;setMode('quiz')">Rejouer</button>`;
+    const mc=masterCount(),tot=allPairs().length;
+    $('view').innerHTML=`<h3>🏁 Quiz terminé !</h3>
+      <p>Tu as gagné ${score} ⭐, Didou. ${mode==='pool'?`Mots maîtrisés : ${mc}/${tot}. `:''}Les mots ratés reviendront gentiment pour t\u2019entraîner encore. Tu progresses, bravo ! 💖</p>
+      <button class="primary" onclick="qIdx=0;setMode('${mode}')">Rejouer</button>`;
     return;
   }
   render();
