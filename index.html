@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Révisions — 5e</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#182233;--muted:#657083;--accent:#4169e1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+.app{max-width:800px;margin:auto;padding:24px}
+h1{font-size:30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+.tile{display:block;text-decoration:none;background:#fff;border-radius:22px;padding:28px;box-shadow:0 5px 20px #0000000d;color:var(--ink);transition:transform .12s}
+.tile:hover{transform:translateY(-3px)}
+.tile .emoji{font-size:40px}.tile h2{margin:10px 0 6px;font-size:20px}.tile p{margin:0;color:var(--muted);font-size:14px}
+.note{margin-top:28px;background:#eef2ff;border-radius:16px;padding:16px 18px;font-size:14px;color:#3949a3}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>🎓 Révisions 5e</h1>
+  <p style="color:var(--muted)">Des petits exercices pour progresser à ton rythme. Les erreurs reviennent plus souvent : c'est comme ça qu'on apprend ! 💪</p>
+  <div class="grid">
+    <a class="tile" href="math.html">
+      <span class="emoji">🎯</span>
+      <h2>Mission Calcul</h2>
+      <p>Tables, décimaux, priorités, vocabulaire maths…</p>
+    </a>
+    <a class="tile" href="langues.html?lang=anglais">
+      <span class="emoji">🇬🇧</span>
+      <h2>Anglais</h2>
+      <p>Listes de vocabulaire, cartes et quiz de traduction.</p>
+    </a>
+    <a class="tile" href="langues.html?lang=espagnol">
+      <span class="emoji">🇪🇸</span>
+      <h2>Espagnol</h2>
+      <p>Listes de vocabulaire, cartes et quiz de traduction.</p>
+    </a>
+  </div>
+  <div class="note">💡 Nouveau contenu bientôt : envoie tes cours et exercices à Papa, il les transforme en jeux !</div>
+</div>
+</body>
+</html>

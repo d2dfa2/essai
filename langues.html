@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Révisions — Vocabulaire</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#182233;--muted:#657083;--accent:#4169e1;--good:#168a52;--bad:#c93636}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+.app{max-width:900px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:26px}
+.card{background:var(--card);border-radius:20px;padding:24px;margin-top:18px;box-shadow:0 5px 20px #0000000d}
+button{border:0;border-radius:14px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer;background:#e9eefc;color:var(--ink)}
+button.primary{background:var(--accent);color:white}button:hover{filter:brightness(.97)}
+.back{display:inline-block;margin-bottom:10px;text-decoration:none;color:var(--accent);font-weight:700}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.chip{border-radius:999px;padding:8px 14px;background:#e9eefc;cursor:pointer;font-weight:700;font-size:14px}
+.chip.on{background:var(--accent);color:#fff}
+.modebar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:10px 0}
+.vocab-table{width:100%;border-collapse:collapse;margin-top:10px}
+.vocab-table td{padding:10px 8px;border-bottom:1px solid #e7ebf2}
+.vocab-table td.lang{font-weight:800}.vocab-table td.fr{color:var(--muted)}
+.speak{background:#e9eefc;border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px}
+.flip{background:var(--accent);color:#fff;border-radius:20px;padding:36px 20px;text-align:center;cursor:pointer;min-height:140px;display:flex;flex-direction:column;justify-content:center}
+.flip .word{font-size:32px;font-weight:800}.flip .hint{font-size:14px;opacity:.8;margin-top:10px}
+input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:14px;border:2px solid #ccd3df;border-radius:12px;font-size:22px;text-align:center}
+.feedback{text-align:center;font-size:18px;font-weight:700;min-height:48px;margin:12px}
+.progress{height:10px;background:#e1e5ec;border-radius:8px;overflow:hidden}.bar{height:100%;background:var(--accent);width:0}
+.pill{background:#fff;border-radius:999px;padding:8px 12px;box-shadow:0 2px 8px #0001;font-weight:700}
+.small{font-size:14px;color:var(--muted)}.sub{text-align:center;color:var(--muted)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <a class="back" href="index.html">🏠 Accueil</a>
+  <div class="top">
+    <h1 id="title">📚 Vocabulaire</h1>
+    <div><span class="pill">⭐ <span id="score">0</span></span></div>
+  </div>
+
+  <section class="card">
+    <h3>1. Choisis ta leçon</h3>
+    <div class="chips" id="lessons"></div>
+    <h3>2. Choisis ton mode</h3>
+    <div class="modebar">
+      <button onclick="setMode('list')">📖 Réviser</button>
+      <button onclick="setMode('flash')">🃏 Cartes</button>
+      <button class="primary" onclick="setMode('quiz')">✏️ Quiz</button>
+    </div>
+  </section>
+
+  <section class="card" id="view"></section>
+</div>
+
+<script src="data/vocab.js"></script>
+<script>
+const params=new URLSearchParams(location.search);
+const langKey=params.get('lang')||'anglais';
+const L=window.VOCAB_DATA[langKey]||Object.values(window.VOCAB_DATA)[0];
+let lesson=L.lessons[0], mode='list', cardIdx=0, flipped=false, deck=[];
+let qIdx=0, qTotal=10, score=Number(localStorage['score_'+langKey]||0), current=null, answered=false;
+let mistakes=JSON.parse(localStorage['mistakes_'+langKey]||'{}');
+const $=id=>document.getElementById(id);
+$('title').textContent=`${L.flag} ${L.label}`;
+
+function speak(txt){try{const u=new SpeechSynthesisUtterance(txt);u.lang=L.speech;speechSynthesis.speak(u)}catch(e){}}
+function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,;'\u2019]/g,'').replace(/\s+/g,' ').trim()}
+function keyOf(p){return lesson.id+'::'+p[0]+'::'+p[1]}
+
+function buildLessonChips(){
+  $('lessons').innerHTML='';
+  L.lessons.forEach(l=>{let c=document.createElement('span');c.className='chip'+(l.id===lesson.id?' on':'');c.textContent=l.title;c.onclick=()=>{lesson=l;setMode(mode)};$('lessons').appendChild(c)});
+}
+
+function setMode(m){mode=m;buildLessonChips();render()}
+function render(){
+  let v=$('view');
+  if(mode==='list'){
+    v.innerHTML=`<h3>${lesson.title}</h3><table class="vocab-table">${lesson.pairs.map(p=>`<tr><td class="fr">${esc(p[0])}</td><td class="lang">${esc(p[1])}</td><td><button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></td></tr>`).join('')}</table>`;
+  } else if(mode==='flash'){
+    if(!deck.length){deck=[...lesson.pairs].sort(()=>Math.random()-.5);cardIdx=0;flipped=false}
+    const p=deck[cardIdx];
+    v.innerHTML=`<div class="sub">${cardIdx+1}/${deck.length} · clique sur la carte pour retourner</div>
+      <div class="flip" onclick="flipped=!flipped;render()">
+        <div class="word">${flipped?esc(p[1]):esc(p[0])}</div>
+        <div class="hint">${flipped?esc(p[0]):'Traduis dans ta tête, puis clique'}</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+        <button onclick="cardIdx=(cardIdx-1+deck.length)%deck.length;flipped=false;render()">←</button>
+        <button onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊</button>
+        <button class="primary" onclick="cardIdx=(cardIdx+1)%deck.length;flipped=false;render()">→</button>
+      </div>`;
+  } else if(mode==='quiz'){
+    if(!current){current=draw();answered=false}
+    if(!current){v.innerHTML='<div class="sub">Ajoute du vocabulaire dans cette leçon pour lancer le quiz.</div>';return}
+    const toLang=Math.random()<.5;
+    v.innerHTML=`<div class="progress"><div class="bar" style="width:${qIdx/qTotal*100}%"></div></div>
+      <div class="sub">Question ${qIdx+1}/${qTotal} · traduis ${toLang?'en '+L.label.toLowerCase():'en français'}</div>
+      <div class="flip" style="cursor:default"><div class="word">${esc(toLang?current[0]:current[1])}</div>
+        <button class="speak" onclick="speak(${JSON.stringify(toLang?current[0]:current[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></div>
+      <input class="answer" id="ans" autocomplete="off" placeholder="Ta réponse">
+      <button class="primary" style="display:block;margin:auto" onclick="check()">Valider</button>
+      <div class="feedback" id="fb"></div>
+      <button id="next" class="primary hidden" onclick="nextQ()">Continuer →</button>`;
+    $('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')check()};
+  }
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function draw(){
+  const pool=[...lesson.pairs];if(!pool.length)return null;
+  let hard=[];pool.forEach(p=>{for(let i=0;i<(mistakes[keyOf(p)]||0);i++)hard.push(p)});
+  const all=pool.concat(hard);return all[Math.floor(Math.random()*all.length)];
+}
+function check(){
+  if(answered)return;const toLang=$('view').querySelector('.sub').textContent.includes(L.label.toLowerCase());
+  const expected=toLang?current[1]:current[0];
+  const ok=norm($('ans').value)===norm(expected);
+  answered=true;
+  if(!ok){mistakes[keyOf(current)]=(mistakes[keyOf(current)]||0)+1}
+  else{score+=10}
+  localStorage['score_'+langKey]=score;localStorage['mistakes_'+langKey]=JSON.stringify(mistakes);
+  $('score').textContent=score;
+  $('fb').style.color=ok?'var(--good)':'var(--bad)';
+  $('fb').innerHTML=ok?'✅ Bravo !':`❌ La bonne réponse était : <b>${esc(expected)}</b>`;
+  $('next').classList.remove('hidden');
+}
+function nextQ(){
+  qIdx++;current=null;
+  if(qIdx>=qTotal){
+    $('view').innerHTML=`<h3>🏁 Quiz terminé !</h3><p>Score ${L.label} : ${score} ⭐</p><p class="small">Les mots ratés reviennent plus souvent.</p><button class="primary" onclick="qIdx=0;setMode('quiz')">Rejouer</button>`;
+    return;
+  }
+  render();
+}
+$('score').textContent=score;
+buildLessonChips();setMode('list');
+</script>
+</body></html>

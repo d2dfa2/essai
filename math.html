@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mission Calcul — 5e</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#182233;--muted:#657083;--accent:#4169e1;--good:#168a52;--bad:#c93636}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+.app{max-width:900px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-size:28px}.stats{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#fff;border-radius:999px;padding:8px 12px;box-shadow:0 2px 8px #0001;font-weight:700}
+.card{background:var(--card);border-radius:20px;padding:24px;margin-top:18px;box-shadow:0 5px 20px #0000000d}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+button{border:0;border-radius:14px;padding:14px 16px;font-size:16px;font-weight:700;cursor:pointer;background:#e9eefc;color:var(--ink)}
+button.primary{background:var(--accent);color:white}button:hover{filter:brightness(.97)}
+.choice{display:block;width:100%;margin:10px 0;text-align:left;background:#f0f3f9}.choice.correct{background:#dff5e9}.choice.wrong{background:#fde3e3}
+.question{font-size:30px;font-weight:800;text-align:center;margin:25px 0}.sub{color:var(--muted);text-align:center}
+input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:14px;border:2px solid #ccd3df;border-radius:12px;font-size:22px;text-align:center}
+.feedback{text-align:center;font-size:18px;font-weight:700;min-height:48px;margin:12px}
+.progress{height:10px;background:#e1e5ec;border-radius:8px;overflow:hidden}.bar{height:100%;background:var(--accent);width:0}
+.small{font-size:14px;color:var(--muted)} .tag{display:inline-block;padding:5px 9px;border-radius:8px;background:#eef2ff;color:#3949a3;margin:3px;font-size:13px}
+.hidden{display:none}.back{display:inline-block;margin-bottom:10px;text-decoration:none;color:var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+  <a class="back" href="index.html">🏠 Accueil</a>
+  <div class="top">
+    <div><h1>🎯 Mission Calcul</h1><div class="small">5e · automatismes + vocabulaire + priorités</div></div>
+    <div class="stats"><span class="pill">⭐ <span id="score">0</span></span><span class="pill">🔥 <span id="streak">0</span></span></div>
+  </div>
+
+  <section id="home" class="card">
+    <h2>Choisis ta mission</h2>
+    <p class="sub">Les exercices ratés reviennent plus souvent. Pas de chronomètre, prends ton temps.</p>
+    <div class="menu" id="menu"></div>
+    <div class="card" style="margin-top:16px">
+      <h3>📖 Les mots à connaître</h3>
+      <span class="tag">terme</span><span class="tag">somme</span><span class="tag">facteur</span><span class="tag">produit</span>
+      <span class="tag">quotient</span><span class="tag">différence</span><span class="tag">numérateur</span><span class="tag">dénominateur</span>
+    </div>
+  </section>
+
+  <section id="game" class="card hidden">
+    <div class="top"><button onclick="home()">← Menu</button><b id="mode"></b><b id="count"></b></div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div id="content"></div>
+    <div class="feedback" id="feedback"></div>
+    <button id="next" class="primary hidden" onclick="nextQuestion()">Continuer →</button>
+  </section>
+
+  <section id="end" class="card hidden">
+    <h2>🏁 Mission terminée !</h2>
+    <p id="result"></p>
+    <button class="primary" onclick="home()">Retour aux missions</button>
+  </section>
+</div>
+
+<script src="data/math.js"></script>
+<script>
+const CHAPTERS = window.MATH_DATA ? window.MATH_DATA.chapters : [];
+let mode='', qIndex=0, total=10, score=Number(localStorage.score||0), streak=0, current=null, answered=false;
+let mistakes=JSON.parse(localStorage.mistakes||'{}');
+const $=id=>document.getElementById(id);
+function save(){localStorage.score=score;localStorage.mistakes=JSON.stringify(mistakes)}
+function home(){$('home').classList.remove('hidden');$('game').classList.add('hidden');$('end').classList.add('hidden')}
+function start(m){mode=m;qIndex=0;streak=0;$('home').classList.add('hidden');$('end').classList.add('hidden');$('game').classList.remove('hidden');nextQuestion()}
+function weighted(arr){
+  let a=[...arr], hard=[];
+  a.forEach(x=>{let k=x.key||x.q||JSON.stringify(x);for(let i=0;i<(mistakes[k]||0);i++)hard.push(x)});
+  return [...a,...hard][Math.floor(Math.random()*(a.length+hard.length))];
+}
+function norm(s){return String(s).trim().replace(',','.').replace(/\s/g,'')}
+function render(q){
+ current=q;answered=false;$('feedback').textContent='';$('next').classList.add('hidden');
+ $('count').textContent=`${qIndex+1}/${total}`;$('bar').style.width=`${qIndex/total*100}%`;
+ let c=$('content'); c.innerHTML=`<div class="sub">${q.help||''}</div><div class="question">${q.q}</div>`;
+ if(q.type==='choice'){q.a.forEach((x,i)=>{let b=document.createElement('button');b.className='choice';b.textContent=x;b.onclick=()=>answer(i===q.correct,b,x);c.appendChild(b)})}
+ else {c.innerHTML+=`<input class="answer" id="ans" inputmode="decimal" autocomplete="off" placeholder="Ta réponse"><button class="primary" style="display:block;margin:auto" onclick="checkInput()">Valider</button>`;$('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')checkInput()}}
+}
+function answer(ok,el){if(answered)return;answered=true; if(!ok) mistake(); if(ok){score+=10;streak++;$('feedback').textContent='✅ Bravo !';$('feedback').style.color='var(--good)'}else{$('feedback').innerHTML=`❌ Pas tout à fait.<br><span class="small">${current.explain}</span>`;$('feedback').style.color='var(--bad)'} save();update();document.querySelectorAll('.choice').forEach(b=>b.disabled=true);el.classList.add(ok?'correct':'wrong');$('next').classList.remove('hidden')}
+function checkInput(){if(answered)return;let ok=norm($('ans').value)===norm(current.correct);answer(ok,$('ans'))}
+function mistake(){let k=current.key||current.q;mistakes[k]=(mistakes[k]||0)+1;streak=0}
+function update(){$('score').textContent=score;$('streak').textContent=streak}
+function nextQuestion(){if(qIndex>=total){$('game').classList.add('hidden');$('end').classList.remove('hidden');$('result').textContent=`Score total : ${score} ⭐. Les erreurs sont mémorisées pour revenir plus souvent dessus.`;return}qIndex++;let pool=buildPool(mode);$('mode').textContent=label(mode);if(pool.length){render(weighted(pool))}else{qIndex=total;nextQuestion()}}
+function label(m){if(m==='mix')return 'Mission complète';const c=CHAPTERS.find(c=>c.id===m);return c?c.title:m}
+function buildPool(m){
+ if(m==='mix')return CHAPTERS.flatMap(c=>c.questions);
+ const c=CHAPTERS.find(c=>c.id===m);return c?c.questions:[];
+}
+(function buildMenu(){
+  let menu=$('menu');
+  CHAPTERS.forEach(c=>{let b=document.createElement('button');b.textContent=`${c.icon} ${c.title}`;b.onclick=()=>start(c.id);menu.appendChild(b)});
+  let mix=document.createElement('button');mix.className='primary';mix.textContent='🎲 Mission complète';mix.onclick=()=>start('mix');menu.appendChild(mix);
+})();
+update();
+</script>
+</body></html>
