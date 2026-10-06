@@ -2,7 +2,8 @@
    CONTENU LANGUES — séries de flashcards.
    Une leçon = { id, title, pairs:[[recto, verso, nature], ...] }
    nature = 'nom' | 'verbe' | 'adjectif' | 'formule' | 'phrase'
-   Modes dispo : Réviser (liste) et Cartes (flashcards).
+   Les leçons dont les cartes sont de nature 'phrase' alimentent
+   l'onglet « Petites phrases », les autres l'onglet « Vocabulaire ».
    ============================================================ */
 window.VOCAB_DATA = {
   anglais: {
@@ -43,7 +44,7 @@ window.VOCAB_DATA = {
 
       /* ---------- SÉRIE 2 : PETITES PHRASES NOTIONNELLES ---------- */
       { id:'hp-phrases', title:'Harry Potter — Les petites phrases', pairs:[
-        /* Présent simple — je / tu / il / elle */
+        /* Présent simple — je / tu / il / elle / nous / vous / ils */
         ['Je joue au Quidditch.','I play Quidditch.','phrase'],
         ['Tu aimes les hiboux.','You like owls.','phrase'],
         ['Il a un balai volant.','He has got a broomstick.','phrase'],
@@ -93,10 +94,10 @@ window.VOCAB_DATA = {
   espagnol: {
     label: 'Espagnol', flag: '🇪🇸', speech: 'es-ES',
     lessons: [
-      { id:'esp-demo1', title:'EXEMPLE — Premières phrases', pairs:[
+      { id:'esp-mots', title:'Premiers mots', pairs:[
         ['bonjour','hola','formule'], ['merci','gracias','formule'],
         ['s\u2019il te plaît','por favor','formule'], ['au revoir','adiós','formule'],
-        ['oui','sí'], ['non','no'], ['je m\u2019appelle…','me llamo…','formule']
+        ['oui','sí','nom'], ['non','no','nom']
       ]}
     ]
   }
