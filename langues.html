@@ -25,19 +25,14 @@ button.rec{background:#fde3e3;color:#c93636}
 .flip{background:var(--accent);color:#fff;border-radius:20px;padding:36px 20px;text-align:center;cursor:pointer;min-height:140px;display:flex;flex-direction:column;justify-content:center}
 .flip .word{font-size:32px;font-weight:800}.flip .hint{font-size:14px;opacity:.8;margin-top:10px}
 .badge{display:inline-block;font-size:14px;font-weight:800;padding:4px 12px;border-radius:999px;background:#fff;color:var(--accent);margin-top:12px}
-input.answer,textarea.answer{display:block;width:100%;max-width:480px;margin:15px auto;padding:14px;border:2px solid #ccd3df;border-radius:12px;font-size:20px;text-align:center;font-family:inherit}
-textarea.answer{text-align:left;min-height:80px;font-size:17px}
-.choice{display:block;width:100%;max-width:480px;margin:10px auto;text-align:left;background:#f0f3f9;font-size:18px}
-.choice.correct{background:#dff5e9}.choice.wrong{background:#fde3e3}
+input.answer{display:block;width:100%;max-width:360px;margin:15px auto;padding:14px;border:2px solid #ccd3df;border-radius:12px;font-size:22px;text-align:center}
 .feedback{text-align:center;font-size:18px;font-weight:700;min-height:48px;margin:12px}
-.modelbox{background:#eef6f0;border-radius:14px;padding:14px 16px;max-width:520px;margin:12px auto;font-size:17px;white-space:pre-line}
 .progress{height:10px;background:#e1e5ec;border-radius:8px;overflow:hidden}.bar{height:100%;background:var(--accent);width:0}
 .pill{background:#fff;border-radius:999px;padding:8px 12px;box-shadow:0 2px 8px #0001;font-weight:700}
 .small{font-size:14px;color:var(--muted)}.sub{text-align:center;color:var(--muted)}
 .hidden{display:none}
 .mastered{font-size:13px;color:var(--good);font-weight:700}
 .audiobar{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap}
-.hintbox{background:#eef2ff;color:#3949a3;border-radius:12px;padding:10px 14px;max-width:520px;margin:12px auto;font-size:15px}
 </style>
 </head>
 <body>
@@ -49,7 +44,7 @@ textarea.answer{text-align:left;min-height:80px;font-size:17px}
   </div>
 
   <section class="card">
-    <h3>1. Choisis ta leçon <span class="small">(préparation d'un contrôle)</span></h3>
+    <h3>1. Choisis ta série <span class="small">(préparation d'un contrôle)</span></h3>
     <div class="chips" id="lessons"></div>
     <h3>2. Choisis ton mode</h3>
     <div class="modebar">
@@ -58,7 +53,7 @@ textarea.answer{text-align:left;min-height:80px;font-size:17px}
       <button class="primary" onclick="setMode('quiz')">✏️ Quiz de leçon</button>
     </div>
     <div class="modebar">
-      <button class="primary" onclick="setMode('pool')">🎲 Quiz général — toutes les leçons</button>
+      <button class="primary" onclick="setMode('pool')">🎲 Quiz général — toutes les séries</button>
     </div>
     <p class="small">Raté → la question revient plus souvent. Validé 10 fois → maîtrisé 🏆 !</p>
   </section>
@@ -73,7 +68,7 @@ const langKey=params.get('lang')||'anglais';
 const L=window.VOCAB_DATA[langKey]||Object.values(window.VOCAB_DATA)[0];
 const BRAVOS=['✅ Bravo Didou !','✅ Super, bien joué !','✅ Excellent, tu progresses !','✅ Parfait, continue comme ça !'];
 const COURAGE=['💡 Pas grave, on apprend de ses erreurs !','💡 Presque ! Regarde bien la réponse, tu vas la retenir.','💡 Ce n\u2019est pas encore ça, mais chaque essai compte. Courage !'];
-const NATURE={nom:'nom',verbe:'verbe',adjectif:'adjectif',formule:'formule'};
+const NATURE={nom:'nom',verbe:'verbe',adjectif:'adjectif',formule:'formule',phrase:'phrase'};
 const MASTER_AT=10;
 let lesson=L.lessons[0], mode='list', cardIdx=0, flipped=false, deck=[];
 let qIdx=0, qTotal=10, score=Number(localStorage['score_'+langKey]||0), current=null, answered=false;
@@ -88,11 +83,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function nat(p){return p[2]?`<span class="badge">${esc(NATURE[p[2]]||p[2])}</span>`:''}
 
 function lessonPairs(l){return l.pairs||[]}
-function lessonMcq(l){return l.mcq||[]}
-function lessonItems(l){return l.items||[]}
 function pairKey(p){return p[0]+'::'+p[1]}
-function mcqKey(l,m){return l.id+'::mcq::'+m.q}
-function writeKey(l,i){return l.id+'::write::'+i.fr}
 function st(k){return stats[k]||{c:0,w:0}}
 function record(k,ok){
   if(!stats[k])stats[k]={c:0,w:0};
@@ -100,8 +91,8 @@ function record(k,ok){
   localStorage['vstats_'+langKey]=JSON.stringify(stats);
 }
 function allLessons(){return mode==='pool'?L.lessons:[lesson]}
-function masterCount(){return L.lessons.reduce((n,l)=>n+lessonPairs(l).filter(p=>st(pairKey(p)).c>=MASTER_AT).length+lessonMcq(l).filter(m=>st(mcqKey(l,m)).c>=MASTER_AT).length+lessonItems(l).filter(i=>st(writeKey(l,i)).c>=MASTER_AT).length,0)}
-function totalQ(){return L.lessons.reduce((n,l)=>n+lessonPairs(l).length+lessonMcq(l).length+lessonItems(l).length,0)}
+function masterCount(){return L.lessons.reduce((n,l)=>n+lessonPairs(l).filter(p=>st(pairKey(p)).c>=MASTER_AT).length,0)}
+function totalQ(){return L.lessons.reduce((n,l)=>n+lessonPairs(l).length,0)}
 
 /* ---------- Enregistrement voix ---------- */
 let mediaRec=null, audioChunks=[];
@@ -140,7 +131,7 @@ function render(){
   let v=$('view');
   if(mode==='list'){
     if(!lessonPairs(lesson).length){
-      v.innerHTML=`<h3>${lesson.title}</h3><p class="small">Cette leçon se travaille en ✏️ Quiz de leçon : écrire des phrases !</p>`;
+      v.innerHTML=`<h3>${lesson.title}</h3><p class="small">Cette série est vide.</p>`;
       return;
     }
     v.innerHTML=`<h3>${lesson.title}</h3><table class="vocab-table">${lessonPairs(lesson).map(p=>{
@@ -153,11 +144,11 @@ function render(){
       <p class="small">Astuce : écoute le modèle, dis le mot, puis réécoute-toi !</p>`;
   } else if(mode==='flash'){
     if(!deck.length){deck=[...lessonPairs(lesson)].sort(()=>Math.random()-.5);cardIdx=0;flipped=false}
-    if(!deck.length){v.innerHTML='<div class="sub">Pas de cartes dans cette leçon : essaie le ✏️ Quiz !</div>';return}
+    if(!deck.length){v.innerHTML='<div class="sub">Pas de cartes dans cette série.</div>';return}
     const p=deck[cardIdx];const s=st(pairKey(p));
     v.innerHTML=`<div class="sub">${cardIdx+1}/${deck.length} · clique sur la carte pour retourner</div>
       <div class="flip" onclick="flipped=!flipped;render()">
-        <div class="word">${flipped?esc(p[1]):esc(p[0])}</div>
+        <div class="word" style="font-size:${p[0].length>32?24:32}px">${flipped?esc(p[1]):esc(p[0])}</div>
         <div class="hint">${flipped?esc(p[0]):'Traduis dans ta tête, puis clique'}</div>
         ${flipped?nat(p):''}
       </div>
@@ -167,48 +158,24 @@ function render(){
         <button class="mic" onclick="toggleRec(this)">🎤 Ma voix</button>
         <button class="primary" onclick="cardIdx=(cardIdx+1)%deck.length;flipped=false;render()">→</button>
       </div>
-      ${s.c>=MASTER_AT?'<p class="sub mastered">🏆 Ce mot est maîtrisé !</p>':''}`;
+      ${s.c>=MASTER_AT?'<p class="sub mastered">🏆 Cette carte est maîtrisée !</p>':''}`;
   } else if(mode==='quiz'||mode==='pool'){
     if(!current){current=draw();answered=false}
     if(!current){
       v.innerHTML=mode==='pool'
         ? '<h3>🏆 Incroyable !</h3><p>Toutes les questions du pool général sont maîtrisées. Tu es trop forte, Didou ! 💖</p>'
-        : '<div class="sub">Cette leçon est encore vide : choisis une autre leçon.</div>';
+        : '<div class="sub">Cette série est encore vide.</div>';
       return;
     }
-    let body='';
-    if(current.kind==='pair'){
-      body=`<div class="flip" style="cursor:default"><div class="word">${esc(current.toLang?current.p[0]:current.p[1])}</div>${nat(current.p)}
-        <button class="speak" onclick="speak(${JSON.stringify(current.toLang?current.p[0]:current.p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></div>
-        <input class="answer" id="ans" autocomplete="off" placeholder="Ta réponse">
-        <button class="primary" style="display:block;margin:auto" onclick="check()">Valider</button>`;
-    } else if(current.kind==='mcq'){
-      body=`<div class="flip" style="cursor:default"><div class="word" style="font-size:24px">${esc(current.m.q)}</div></div>
-        ${current.m.a.map((x,i)=>`<button class="choice" onclick="checkM(${i===current.m.correct},this)">${esc(x)}</button>`).join('')}`;
-    } else if(current.kind==='write'){
-      body=`<div class="sub">✍️ Écris en ${L.label.toLowerCase()} :</div>
-        <div class="flip" style="cursor:default"><div class="word" style="font-size:26px">${esc(current.i.fr)}</div></div>
-        <div class="hintbox">💡 ${esc(current.i.hint)}</div>
-        <textarea class="answer" id="wans" placeholder="Écris ta phrase ici…"></textarea>
-        <div class="audiobar">
-          <button class="primary" onclick="showModel()">👀 Voir un exemple de réponse</button>
-        </div>
-        <div id="modelbox" class="modelbox hidden">✨ Exemple de réponse :<br><b>${esc(current.i.model)}</b></div>
-        <div id="selfbox" class="hidden">
-          <div class="sub">Compare avec l\u2019exemple : comment trouves-tu ta phrase ?</div>
-          <div class="audiobar">
-            <button class="primary" onclick="selfEval(true)">✅ J\u2019ai bien réussi !</button>
-            <button onclick="selfEval(false)">💡 Je recommencerai</button>
-          </div>
-        </div>`;
-    }
     v.innerHTML=`<div class="progress"><div class="bar" style="width:${qIdx/qTotal*100}%"></div></div>
-      <div class="sub">${mode==='pool'?'Quiz général · ':''}Question ${qIdx+1}/${qTotal}${current.kind==='pair'?` · traduis ${current.toLang?'en '+L.label.toLowerCase():'en français'}`:''}</div>
-      ${body}
+      <div class="sub">${mode==='pool'?'Quiz général · ':''}Question ${qIdx+1}/${qTotal} · traduis ${current.toLang?'en '+L.label.toLowerCase():'en français'}</div>
+      <div class="flip" style="cursor:default"><div class="word" style="font-size:${current.p[0].length>32?24:32}px">${esc(current.toLang?current.p[0]:current.p[1])}</div>${nat(current.p)}
+        <button class="speak" onclick="speak(${JSON.stringify(current.toLang?current.p[0]:current.p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button></div>
+      <input class="answer" id="ans" autocomplete="off" placeholder="Ta réponse">
+      <button class="primary" style="display:block;margin:auto" onclick="check()">Valider</button>
       <div class="feedback" id="fb"></div>
       <button id="next" class="primary hidden" onclick="nextQ()">Continuer →</button>`;
-    if(current.kind==='pair'){$('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')check()}}
-    if(current.kind==='write'){$('wans').focus()}
+    $('ans').focus();$('ans').onkeydown=e=>{if(e.key==='Enter')check()};
   }
 }
 
@@ -219,21 +186,16 @@ function draw(){
   lessons.forEach(l=>{
     lessonPairs(l).forEach(p=>{
       const s=st(pairKey(p));
-      if(mode!=='pool'||s.c<MASTER_AT){for(let i=0;i<1+Math.min(s.w,3);i++)pool.push({kind:'pair',p,toLang:Math.random()<.5,key:pairKey(p)})}
-    });
-    lessonMcq(l).forEach(m=>{
-      const s=st(mcqKey(l,m));
-      if(mode!=='pool'||s.c<MASTER_AT){for(let i=0;i<1+Math.min(s.w,3);i++)pool.push({kind:'mcq',m,key:mcqKey(l,m)})}
-    });
-    lessonItems(l).forEach(i=>{
-      const s=st(writeKey(l,i));
-      if(mode!=='pool'||s.c<MASTER_AT){for(let j=0;j<1+Math.min(s.w,3);j++)pool.push({kind:'write',i,key:writeKey(l,i)})}
+      if(mode!=='pool'||s.c<MASTER_AT){for(let i=0;i<1+Math.min(s.w,3);i++)pool.push({p,toLang:Math.random()<.5,key:pairKey(p)})}
     });
   });
   if(!pool.length)return null;
   return pool[Math.floor(Math.random()*pool.length)];
 }
-function feedback(ok,expected,explain){
+function check(){
+  if(answered)return;
+  const expected=current.toLang?current.p[1]:current.p[0];
+  const ok=norm($('ans').value)===norm(expected);
   answered=true;
   record(current.key,ok);
   if(ok)score+=10;
@@ -242,26 +204,9 @@ function feedback(ok,expected,explain){
   $('fb').style.color=ok?'var(--good)':'var(--bad)';
   const mastered=ok&&st(current.key).c>=MASTER_AT;
   $('fb').innerHTML=ok?pick(BRAVOS)+(mastered?' 🏆 Cette question est maintenant maîtrisée !':'')
-    :`${pick(COURAGE)} ${expected?`La bonne réponse était : <b>${esc(expected)}</b>`:''}${explain?`<br><span class="small">${esc(explain)}</span>`:''}`;
+    :`${pick(COURAGE)} La bonne réponse était : <b>${esc(expected)}</b>`;
   $('next').classList.remove('hidden');
 }
-function check(){
-  if(answered)return;
-  const expected=current.toLang?current.p[1]:current.p[0];
-  const ok=norm($('ans').value)===norm(expected);
-  feedback(ok,expected);
-}
-function checkM(ok,btn){
-  if(answered)return;
-  btn.classList.add(ok?'correct':'wrong');
-  feedback(ok,current.m.a[current.m.correct],current.m.explain);
-}
-function showModel(){
-  $('modelbox').classList.remove('hidden');
-  $('selfbox').classList.remove('hidden');
-  try{speak(current.i.model.replace(/\n/g,'. '))}catch(e){}
-}
-function selfEval(ok){feedback(ok)}
 function nextQ(){
   qIdx++;current=null;
   if(qIdx>=qTotal){
