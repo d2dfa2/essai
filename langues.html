@@ -45,7 +45,7 @@ input.answer{display:block;width:100%;max-width:480px;margin:15px auto;padding:1
       <div class="tab" id="tab-words-rev" onclick="goTab('words-rev')">🇬🇧→🇫🇷 Anglais vers français</div>
       <div class="tab" id="tab-phrases" onclick="goTab('phrases')">💬 Petites phrases</div>
     </div>
-    <p class="small">Les questions ratées reviennent plus souvent, celles validées 10 fois sont maîtrisées 🏆.</p>
+    <p class="small">Petites phrases : les deux sens (FR→EN et EN→FR) sont tirés au hasard. Raté → revient plus souvent. Validé 10 fois → maîtrisé 🏆.</p>
     <div class="audiobar">
       <button onclick="startReview()">🃏 Réviser les cartes</button>
       <button class="primary" onclick="startQuiz()">✏️ Quiz</button>
@@ -74,8 +74,9 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 $('title').textContent=`${L.flag} ${L.label} de Didou`;
 
 function pairs(){return (tab==='phrases'?PHRASE_LESSONS:WORDS_LESSONS).flatMap(l=>l.pairs||[])}
-function toEnglish(){return tab==='words'}
-function dirLabel(){return tab==='words'?'en '+L.label.toLowerCase():'en français'}
+/* Sens de la question courante : current.toEn = true → traduire EN ;
+   false → traduire FR. Chaque question garde son sens du début à la fin. */
+function dirLabel(){return current&&current.toEn?'en '+L.label.toLowerCase():'en français'}
 
 /* Synthèse vocale : uniquement sur clic d'un bouton 🔊 */
 function speak(txt){try{const u=new SpeechSynthesisUtterance(txt);u.lang=L.speech;speechSynthesis.speak(u)}catch(e){}}
@@ -125,8 +126,8 @@ function render(){
       v.innerHTML='<h3>🏆 Incroyable !</h3><p>Toutes les questions de cet onglet sont maîtrisées. Tu es trop forte, Didou ! 💖</p>';
       return;
     }
-    const en=toEnglish();
-    const shown=en?current.p[0]:current.p[1];
+    const toEn=current.toEn;
+    const shown=toEn?current.p[0]:current.p[1];
     v.innerHTML=`<div class="progress"><div class="bar" style="width:${qIdx/qTotal*100}%"></div></div>
       <div class="sub">Question ${qIdx+1}/${qTotal} · traduis ${dirLabel()}</div>
       <div class="flip" style="cursor:default"><div class="word" style="font-size:${shown.length>32?24:32}px">${esc(shown)}</div>${nat(current.p)}
@@ -142,7 +143,6 @@ function render(){
 /* ---------- tirage : insiste sur les échecs ---------- */
 function draw(){
   const all=pairs();if(!all.length)return null;
-  const en=toEnglish();
   let pool=[];
   all.forEach(p=>{
     const s=st(keyOf(p));
@@ -151,7 +151,9 @@ function draw(){
   });
   if(!pool.length)return null;
   const p=pool[Math.floor(Math.random()*pool.length)];
-  return {p,toEn:tab==='phrases'?Math.random()<.5:en};
+  /* sens : Vocabulaire → EN ; Anglais vers français → FR ; Petites phrases → aléatoire */
+  const toEn=tab==='words'?true:tab==='words-rev'?false:Math.random()<.5;
+  return {p,toEn};
 }
 function check(){
   if(answered)return;
