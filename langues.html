@@ -12,16 +12,12 @@ h1{margin:0;font-size:26px}
 .card{background:var(--card);border-radius:20px;padding:24px;margin-top:18px;box-shadow:0 5px 20px #0000000d}
 button{border:0;border-radius:14px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer;background:#e9eefc;color:var(--ink)}
 button.primary{background:var(--accent);color:white}button:hover{filter:brightness(.97)}
-button.rec{background:#fde3e3;color:#c93636}
 .back{display:inline-block;margin-bottom:10px;text-decoration:none;color:var(--accent);font-weight:700}
 .tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:16px 0}
 .tab{border-radius:16px;padding:16px;cursor:pointer;font-weight:800;font-size:16px;background:#e9eefc;text-align:center;transition:transform .1s}
 .tab:hover{transform:translateY(-2px)}
 .tab.on{background:var(--accent);color:#fff}
-.vocab-table{width:100%;border-collapse:collapse;margin-top:10px}
-.vocab-table td{padding:10px 8px;border-bottom:1px solid #e7ebf2}
-.vocab-table td.lang{font-weight:800}.vocab-table td.fr{color:var(--muted)}
-.speak,.mic{background:#e9eefc;border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px}
+.speak{background:#e9eefc;border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px}
 .flip{background:var(--accent);color:#fff;border-radius:20px;padding:36px 20px;text-align:center;cursor:pointer;min-height:140px;display:flex;flex-direction:column;justify-content:center}
 .flip .word{font-size:32px;font-weight:800}.flip .hint{font-size:14px;opacity:.8;margin-top:10px}
 .badge{display:inline-block;font-size:14px;font-weight:800;padding:4px 12px;border-radius:999px;background:#fff;color:var(--accent);margin-top:12px}
@@ -78,9 +74,10 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 $('title').textContent=`${L.flag} ${L.label} de Didou`;
 
 function pairs(){return (tab==='phrases'?PHRASE_LESSONS:WORDS_LESSONS).flatMap(l=>l.pairs||[])}
-function toEnglish(){return tab==='words'}       // words tab: FR→EN ; words-rev: EN→FR
+function toEnglish(){return tab==='words'}
 function dirLabel(){return tab==='words'?'en '+L.label.toLowerCase():'en français'}
 
+/* Synthèse vocale : uniquement sur clic d'un bouton 🔊 */
 function speak(txt){try{const u=new SpeechSynthesisUtterance(txt);u.lang=L.speech;speechSynthesis.speak(u)}catch(e){}}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,;'\u2019]/g,'').replace(/\s+/g,' ').trim()}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -93,35 +90,12 @@ function record(k,ok){
   localStorage['vstats_'+langKey]=JSON.stringify(stats);
 }
 
-/* ---------- voix ---------- */
-let mediaRec=null, audioChunks=[];
-async function toggleRec(btn){
-  try{
-    if(mediaRec&&mediaRec.state==='recording'){mediaRec.stop();return}
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    audioChunks=[];
-    mediaRec=new MediaRecorder(stream);
-    let url=null;
-    mediaRec.ondataavailable=e=>audioChunks.push(e.data);
-    mediaRec.onstop=()=>{
-      stream.getTracks().forEach(t=>t.stop());
-      url=URL.createObjectURL(new Blob(audioChunks,{type:'audio/webm'}));
-      btn.textContent='🎤 Dire encore';btn.classList.remove('rec');
-      const pb=document.createElement('button');pb.className='speak';pb.textContent='▶️ Ma voix';
-      pb.onclick=()=>new Audio(url).play();
-      btn.after(pb);
-    };
-    mediaRec.start();
-    btn.textContent='⏹️ Arrêter';btn.classList.add('rec');
-  }catch(e){btn.textContent='🎤 Micro refusé';setTimeout(()=>btn.textContent='🎤 Ma voix',1500)}
-}
-
 /* ---------- onglets ---------- */
-function goTab(t){tab=t;qIdx=0;current=null;mode=null;
+function goTab(t){tab=t;qIdx=0;current=null;mode=null;deck=[];
   ['words','words-rev','phrases'].forEach(x=>$('tab-'+x).classList.toggle('on',x===t));
   render();
 }
-function startReview(){mode='review';if(!deck.length){deck=[...pairs()].sort(()=>Math.random()-.5);cardIdx=0;flipped=false}render()}
+function startReview(){mode='review';deck=[];render()}
 function startQuiz(){mode='quiz';qIdx=0;current=draw();answered=false;render()}
 
 function render(){
@@ -142,8 +116,7 @@ function render(){
       </div>
       <div class="audiobar">
         <button onclick="cardIdx=(cardIdx-1+deck.length)%deck.length;flipped=false;render()">←</button>
-        <button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Modèle</button>
-        <button class="mic" onclick="toggleRec(this)">🎤 Ma voix</button>
+        <button class="speak" onclick="speak(${JSON.stringify(p[1]).replace(/"/g,'&quot;')})">🔊 Écouter</button>
         <button class="primary" onclick="cardIdx=(cardIdx+1)%deck.length;flipped=false;render()">→</button>
       </div>
       ${s.c>=MASTER_AT?'<p class="sub mastered">🏆 Cette carte est maîtrisée !</p>':''}`;
@@ -152,7 +125,7 @@ function render(){
       v.innerHTML='<h3>🏆 Incroyable !</h3><p>Toutes les questions de cet onglet sont maîtrisées. Tu es trop forte, Didou ! 💖</p>';
       return;
     }
-    const en=toEnglish(); // question affichée côté FR ?
+    const en=toEnglish();
     const shown=en?current.p[0]:current.p[1];
     v.innerHTML=`<div class="progress"><div class="bar" style="width:${qIdx/qTotal*100}%"></div></div>
       <div class="sub">Question ${qIdx+1}/${qTotal} · traduis ${dirLabel()}</div>
@@ -173,11 +146,10 @@ function draw(){
   let pool=[];
   all.forEach(p=>{
     const s=st(keyOf(p));
-    if(s.c>=MASTER_AT)return;           // maîtrisé : on ne le redemande plus
-    for(let i=0;i<1+s.w;i++)pool.push(p); // raté → revient plus souvent
+    if(s.c>=MASTER_AT)return;
+    for(let i=0;i<1+s.w;i++)pool.push(p);
   });
   if(!pool.length)return null;
-  // phrases : sens aléatoire dans l'onglet Petites phrases
   const p=pool[Math.floor(Math.random()*pool.length)];
   return {p,toEn:tab==='phrases'?Math.random()<.5:en};
 }
